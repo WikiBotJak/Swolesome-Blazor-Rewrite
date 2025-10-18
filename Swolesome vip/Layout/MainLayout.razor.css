@@ -1,0 +1,14 @@
+.page {
+    max-width: 80rem;
+}
+
+.heading {
+    font-family: 'Rubik Bubbles';
+    color: #ff97b9;
+}
+
+.footer-inline-image {
+    margin-left: 1px;
+    margin-right: 1px;
+    height: 1.70rem;
+}

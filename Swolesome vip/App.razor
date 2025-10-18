@@ -1,0 +1,19 @@
+﻿<Router AppAssembly="@typeof(App).Assembly">
+    <Found Context="routeData">
+        <RouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)"/>
+        <FocusOnNavigate RouteData="@routeData" Selector="h1"/>
+    </Found>
+    <NotFound>
+        <PageTitle>Not found</PageTitle>
+        <LayoutView Layout="@typeof(MainLayout)">
+            <div class="p-4 text-center">
+                <h1>Sorry teen, theres nothing at this address.</h1>
+                <p><big>No secret pages here.</big></p>
+                
+                <a href="/" class="btn btn-primary btn-lg px-4">
+                    Return Home
+                </a>
+            </div>
+        </LayoutView>
+    </NotFound>
+</Router>
