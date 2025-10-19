@@ -1,5 +1,49 @@
 ﻿@page "/"
+@using Swolesome_vip.Models
 
 <section class="bg-white rounded shadow p-4 mb-4">
-    <SearchInterface />
+    <SearchInterface OnSearchCompleted="HandleSearchCompleted" />
 </section>
+
+@if (Results is not null && Results.Count > 0)
+{
+    <hr />
+    @foreach (var result in Results)
+    {
+        <section class="bg-white rounded shadow p-4 mb-4">
+            <div class="d-flex justify-content-between mb-2">
+                <div class="d-flex align-items-center">
+                    <h5 class="fw-bold text-black-50">Results for <span class="text-primary">@String.Join(", ", result.SelectedFields): @result.Term</span></h5>
+                </div>
+                <div class="d-flex align-items-center">
+                    <button class="btn btn-sm btn-outline-secondary me-2">
+                        Copy as text
+                    </button>
+                    <button class="btn btn-sm btn-outline-secondary me-2">
+                        Copy as CSV
+                    </button>
+                    <button class="btn btn-sm btn-outline-secondary">
+                        Copy as JSON
+                    </button>
+                </div>
+            </div>
+            @if (result.jsonData.RootElement.TryGetProperty("error", out var error))
+            {
+                <p class="text-danger fw-bold">Error: @error.GetString()</p>
+            }
+            else
+            {
+                <ResultsTable Rows="@(result.jsonData.RootElement.GetProperty("results").EnumerateArray())"/>
+            }
+        </section>
+    }
+}
+
+@code {
+    [Parameter] public List<SearchResult> Results { get; set; } = new List<SearchResult>();
+
+    private void HandleSearchCompleted(List<SearchResult> ctx)
+    {
+        Results = ctx;
+    }
+}

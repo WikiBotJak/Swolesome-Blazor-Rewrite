@@ -1,0 +1,105 @@
+@using System.Text.Json
+
+@foreach (var item in Rows)
+{
+    <div class="table-responsive">
+        <table class="table table-bordered table-sm mb-3">
+            <tbody>
+            @{
+                var properties = item.EnumerateObject().ToList();
+                bool firstRow = true;
+            }
+
+            @foreach (var kvp in properties)
+            {
+                var isTopRow = firstRow;
+                bool showRow = isTopRow || IsExpanded(item);
+                if (!showRow) continue;
+
+                <tr class="@GetRowClass(kvp.Name, isTopRow, item)">
+                    <td class="py-2 px-3 font-weight-bold" style="width: 25%;">
+                        <div class="d-flex align-items-center gap-2">
+                            @if (isTopRow)
+                            {
+                                <button class="btn btn-sm" @onclick="@(() => ToggleRow(item))">
+                                    @(IsExpanded(item) ? "▼" : "►")
+                                </button>
+                            }
+                            <span>@kvp.Name</span>
+                        </div>
+                    </td>
+                    <td class="py-2 px-3 text-break">
+                        <span>@RenderJsonValue(kvp.Value)</span>
+                    </td>
+                </tr>
+
+                firstRow = false;
+            }
+            </tbody>
+        </table>
+    </div>
+}
+
+@code {
+    [Parameter] public IEnumerable<JsonElement> Rows { get; set; } = Array.Empty<JsonElement>();
+
+    private HashSet<int> ExpandedRows { get; set; } = new();
+
+    private void ToggleRow(JsonElement item)
+    {
+        var key = item.GetHashCode();
+        if (!ExpandedRows.Add(key)) ExpandedRows.Remove(key);
+    }
+
+    private bool IsExpanded(JsonElement item) => ExpandedRows.Contains(item.GetHashCode());
+
+    private string GetRowClass(string key, bool isTopRow, JsonElement item)
+    {
+        bool hasSourceFilter = item.TryGetProperty("_hasSourceFilter", out var f) && f.GetBoolean();
+        bool isDefinitive = item.TryGetProperty("_isDefinitive", out var d) && d.GetBoolean();
+
+        if (isTopRow && hasSourceFilter && isDefinitive)
+            return "table-success";        // green
+        if (isTopRow && hasSourceFilter && !isDefinitive)
+            return "table-warning";        // yellow
+        if (isTopRow && !hasSourceFilter)
+            return "table-secondary";      // gray
+
+        if (!isTopRow && hasSourceFilter && isDefinitive)
+            return "bg-success text-dark"; // light green
+        if (!isTopRow && hasSourceFilter && !isDefinitive)
+            return "bg-warning text-dark"; // light yellow
+        if (!isTopRow && !hasSourceFilter)
+            return "bg-white";
+
+        return "";
+    }
+
+    private RenderFragment RenderJsonValue(JsonElement value) => builder =>
+    {
+        switch (value.ValueKind)
+        {
+            case JsonValueKind.String:
+                builder.AddContent(0, value.GetString());
+                break;
+            case JsonValueKind.Number:
+                builder.AddContent(0, value.GetRawText());
+                break;
+            case JsonValueKind.True:
+            case JsonValueKind.False:
+                builder.AddContent(0, value.GetBoolean().ToString());
+                break;
+            case JsonValueKind.Null:
+                break;
+            case JsonValueKind.Array:
+                var items = value.EnumerateArray()
+                    .Select(e => e.ValueKind == JsonValueKind.String ? e.GetString() : e.GetRawText());
+                builder.AddContent(0, string.Join(", ", items));
+                break;
+            case JsonValueKind.Object:
+            default:
+                builder.AddContent(0, value.GetRawText());
+                break;
+        }
+    };
+}

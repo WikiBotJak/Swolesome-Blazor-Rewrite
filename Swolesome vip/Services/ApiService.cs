@@ -12,7 +12,7 @@ public class ApiService
         _httpClient = httpClient;
     }
     
-    public async Task<string> SendRequestAsync(
+    public async Task<JsonDocument> SendRequestAsync(
         string term,
         List<string>? filelds = null, 
         bool wildcard = false,
@@ -31,8 +31,7 @@ public class ApiService
         var jsonBody = JsonSerializer.Serialize(body);
         var contnet = new StringContent(jsonBody, Encoding.UTF8, "application/json");
         var response = await _httpClient.PostAsync(targetUrl, contnet);
-        var responseData = await response.Content.ReadAsStringAsync();
-        
-        return responseData;
+        await using var responseStream = await response.Content.ReadAsStreamAsync();
+        return await JsonDocument.ParseAsync(responseStream);
     }
 }

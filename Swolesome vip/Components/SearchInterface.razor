@@ -1,20 +1,23 @@
 @inject ApiService apiService
 @inject SearchConfigService ConfigService
+@using System.Text.Json
+@using Swolesome_vip.Models
 @using Swolesome_vip.Services
 
 <div class="d-flex justify-content-between">
     <h4 class="text-lg font-semibold mb-2">Search</h4>
-    <button class="btn btn-outline-primary">Config</button>
+    <button class="btn btn-info"><i class="fa fa-gear"></i> Config</button>
 </div>
 
 <div class="mb-3">
-    <label class="fw-semibold d-block">
+    <label class="fw-semibold d-block mb-2">
         Input (one per line)
-        <span class="ms-2 text-primary small cursor-pointer">
-            📂 Import
-        </span>
+        <button type="button" class="btn btn-sm btn-outline-primary ms-2"
+                @onclick="TriggerFileImport">
+            <i class="fa-solid fa-file-import me-1"></i> Import
+        </button>
     </label>
-    <textarea @bind="SearchInput"  rows="5" class="form-control"></textarea>
+    <textarea @bind="SearchInput" rows="5" class="form-control"></textarea>
     <input type="file" class="d-none"/>
 </div>
 
@@ -43,23 +46,53 @@
 </div>
 
 <div class="mb-3">
-    <button class="btn btn-primary" @onclick="StartSearch">🔎 Start Search</button>
+    @if (isSearching)
+    {
+        <button class="btn btn-primary" disabled><i class="fa-solid fa-spinner fa-spin"></i> Searching...</button>   
+    }
+    else
+    {
+        <button class="btn btn-primary" @onclick="StartSearch"><i class="fa-solid fa-magnifying-glass"></i> Start Search</button>   
+    }
 </div>
 
 @code {
+    [Parameter] public EventCallback<List<SearchResult>> OnSearchCompleted { get; set; }
     private List<string> SelectedInputTypes { get; set; } = new();
     private string SearchInput { get; set; } = String.Empty;
     private bool WildcardEnabled { get; set; }
     private bool CaseSensitiveEnabled { get; set; }
-    private string results { get; set; } = string.Empty;
+    private List<SearchResult> results { get; set; } = new List<SearchResult>();
+
+    private bool isSearching = false;
 
     private async Task StartSearch()
     {
-        if(string.IsNullOrWhiteSpace(SearchInput)) return;
+        results.Clear();
+        if (string.IsNullOrWhiteSpace(SearchInput) || isSearching) return;
+        isSearching = true;
+        StateHasChanged();
 
-        results = await apiService.SendRequestAsync(SearchInput, SelectedInputTypes, WildcardEnabled, CaseSensitiveEnabled);
+        var searchInputList = SearchInput.Split("\n");
+
+        foreach (var input in searchInputList)
+        {
+            var response = await apiService.SendRequestAsync(input, SelectedInputTypes, WildcardEnabled, CaseSensitiveEnabled);
+            results.Add(new SearchResult
+            {
+                jsonData = response,
+                Term = input,
+                SelectedFields = SelectedInputTypes
+            });
+        }
+
+        await OnSearchCompleted.InvokeAsync(results);
+        isSearching = false;
+    }
+
+    private void TriggerFileImport()
+    {
         
-        Console.WriteLine(results);
     }
 
     private void ToggleInputType(string type)
