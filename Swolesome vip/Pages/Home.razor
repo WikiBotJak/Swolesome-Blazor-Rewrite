@@ -1,45 +1,5 @@
-﻿@inject  ApiService apiService
-
-@page "/"
-@using Swolesome_vip.Services
+﻿@page "/"
 
 <section class="bg-white rounded shadow p-4 mb-4">
-    <h2 class="text-lg font-semibold mb-2">Search</h2>
-
-    <!-- Input Area -->
-    <div class="mb-3">
-        <label class="fw-semibold d-block">
-            Input (one per line)
-            <span class="ms-2 text-primary small cursor-pointer">
-                📂 Import
-            </span>
-        </label>
-        <textarea @bind="SearchInput"  rows="5" class="form-control"></textarea>
-        <input type="file" class="d-none" />
-    </div>
-    
-    <div class="mt-3">
-        <button class="btn btn-primary" @onclick="StartSearch">🔎 Start Search</button>
-    </div>
-    
-    <p>
-        @if(!string.IsNullOrWhiteSpace(results))
-        {
-            <pre>@results</pre>
-        }
-    </p>
+    <SearchInterface />
 </section>
-
-@code {
-
-    private string SearchInput { get; set; } = String.Empty;
-
-    private string results { get; set; } = string.Empty;
-
-    private async Task StartSearch()
-    {
-        if(string.IsNullOrWhiteSpace(SearchInput)) return;
-
-        results = await apiService.SendRequestAsync(SearchInput, new List<string> { "username" });
-    }
-}
