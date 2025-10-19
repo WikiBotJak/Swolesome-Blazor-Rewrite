@@ -1,6 +1,16 @@
 ﻿@page "/"
 @using Swolesome_vip.Models
 
+@* 
+  This is the main page of the Blazor app. 
+
+  - It displays a search interface at the top using the `SearchInterface` component.
+  - When a search is completed, the results are passed to this page via `HandleSearchCompleted`.
+  - We then display the results using the `ResultsTable` component.
+  
+  Note: This page uses conditional rendering (`if` statements) and loops (`foreach`) to dynamically show results.
+*@
+
 <section class="bg-white rounded shadow p-4 mb-4">
     <SearchInterface OnSearchCompleted="HandleSearchCompleted" />
 </section>
@@ -39,6 +49,10 @@
     }
 }
 
+@* @code is a C# syntax that allows us to use C# code in a Razor file.
+    In this case, we use it to define a method that will be called when the search is completed.
+    We also use it to define a property that will hold the results of the search.
+*@
 @code {
     [Parameter] public List<SearchResult> Results { get; set; } = new List<SearchResult>();
 

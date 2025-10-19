@@ -1,4 +1,7 @@
 ﻿@inherits LayoutComponentBase
+
+@* This is the main layout of the app. 
+   Any page using this layout will have its content rendered where @Body appears. *@
 <div class="page mx-auto p-4">
     <header>
         <div class="d-flex align-items-center mb-4 gap-3">
@@ -14,6 +17,8 @@
     </header>
     
     <main class="main">
+        @* @Body is a special placeholder in Blazor layouts.
+       It will be replaced with the content of the page that uses this layout. *@
         @Body
     </main>
     

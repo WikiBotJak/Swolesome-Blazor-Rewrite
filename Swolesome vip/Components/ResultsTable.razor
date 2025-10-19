@@ -1,5 +1,7 @@
 @using System.Text.Json
 
+@* This component renders a table of JSON objects *@
+
 @foreach (var item in Rows)
 {
     <div class="table-responsive">
@@ -12,8 +14,10 @@
 
             @foreach (var kvp in properties)
             {
+                @* Blazor actaully allows us to use C# code in a Razor file directly like this in markup.
+                Here we use a ternary operator to determine whether to show the row. *@
                 var isTopRow = firstRow;
-                bool showRow = isTopRow || IsExpanded(item);
+                bool showRow = firstRow || IsExpanded(item);
                 if (!showRow) continue;
 
                 <tr class="@GetRowClass(kvp.Name, isTopRow, item)">
@@ -21,6 +25,8 @@
                         <div class="d-flex align-items-center gap-2">
                             @if (isTopRow)
                             {
+                                @* @onclick binds a C# lambda method to the click event.
+                                Here we pass 'item' to the ToggleRow method when clicked *@
                                 <button class="btn btn-sm" @onclick="@(() => ToggleRow(item))">
                                     @(IsExpanded(item) ? "▼" : "►")
                                 </button>
@@ -29,6 +35,8 @@
                         </div>
                     </td>
                     <td class="py-2 px-3 text-break">
+                        @* Render the value by passing it to the RenderJsonValue method.
+                        This shows that we can call C# methods and use variables directly in Razor *@
                         <span>@RenderJsonValue(kvp.Value)</span>
                     </td>
                 </tr>

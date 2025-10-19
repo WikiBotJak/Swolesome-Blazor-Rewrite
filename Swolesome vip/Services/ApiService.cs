@@ -3,6 +3,8 @@ using System.Text.Json;
 
 namespace Swolesome_vip.Services;
 
+// This is a simple service that sends a request to the API and returns the response as a JsonDocument (breach.vip)
+// Note: I had to use your existing proxy script to get this working because of cors. But I plan to add a blazor server api project to act as the proxy instead. 
 public class ApiService
 {
     private readonly HttpClient _httpClient;

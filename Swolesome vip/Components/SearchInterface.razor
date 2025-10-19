@@ -1,6 +1,5 @@
 @inject ApiService apiService
 @inject SearchConfigService ConfigService
-@using System.Text.Json
 @using Swolesome_vip.Models
 @using Swolesome_vip.Services
 
@@ -12,17 +11,20 @@
 <div class="mb-3">
     <label class="fw-semibold d-block mb-2">
         Input (one per line)
+        @* This button triggers a file import when clicked, calling function TriggerFileImport *@
         <button type="button" class="btn btn-sm btn-outline-primary ms-2"
                 @onclick="TriggerFileImport">
             <i class="fa-solid fa-file-import me-1"></i> Import
         </button>
     </label>
+    @* This textarea is two-way bound to the SearchInput variable. *@
     <textarea @bind="SearchInput" rows="5" class="form-control"></textarea>
     <input type="file" class="d-none"/>
 </div>
 
 <div class="mb-3">
     <div class="d-flex align-items-center gap-4 mt-2">
+        @* This checkbox is two-way bound to the WildcardEnabled variable. You get the idea for the rest of the @bind attributes *@
         <label class="d-inline-flex align-items-center">
             <input type="checkbox" @bind="WildcardEnabled" class="mr-2"/>Wildcard
         </label>
@@ -35,9 +37,10 @@
 <div class="mb-3">
     <label class="form-label fw-medium mb-2">Input Types (select at least one)</label>
     <div class="d-flex gap-2 flex-wrap">
+        @* Loop through all configured input types and create a checkbox for each *@
         @foreach (var type in ConfigService.Config.InputTypes)
         {
-            <input type="checkbox" class="btn-check" id="btn-check-@type" autocomplete="off" 
+            <input type="checkbox" class="btn-check" id="btn-check-@type" autocomplete="off"
                    checked="@(SelectedInputTypes.Contains(type))"
                    @onchange="() => ToggleInputType(type)">
             <label class="btn btn-secondary btn-sm" for="btn-check-@type">@type</label>
@@ -71,7 +74,7 @@
         results.Clear();
         if (string.IsNullOrWhiteSpace(SearchInput) || isSearching) return;
         isSearching = true;
-        StateHasChanged();
+        StateHasChanged(); // Force a re-render. This way the button is disabled while the search is running. 
 
         var searchInputList = SearchInput.Split("\n");
 
@@ -86,6 +89,7 @@
             });
         }
 
+        // InvokeAsync sends an callback to the parent component to update the UI
         await OnSearchCompleted.InvokeAsync(results);
         isSearching = false;
     }
