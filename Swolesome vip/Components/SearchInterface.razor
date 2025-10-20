@@ -12,14 +12,17 @@
     <label class="fw-semibold d-block mb-2">
         Input (one per line)
         @* This button triggers a file import when clicked, calling function TriggerFileImport *@
-        <button type="button" class="btn btn-sm btn-outline-primary ms-2"
-                @onclick="TriggerFileImport">
+        @* <button type="button" class="btn btn-sm btn-outline-primary ms-2" *@
+        @*         @onclick="TriggerFileImport"> *@
+        @*     <i class="fa-solid fa-file-import me-1"></i> Import *@
+        @* </button> *@
+        <label class="btn btn-sm btn-outline-primary ms-2 btn-file">
             <i class="fa-solid fa-file-import me-1"></i> Import
-        </button>
+            <InputFile OnChange="HandFileSelected" ref="fileInput" accept=".txt" class="d-none" />
+        </label>
     </label>
     @* This textarea is two-way bound to the SearchInput variable. *@
     <textarea @bind="SearchInput" rows="5" class="form-control"></textarea>
-    <input type="file" class="d-none"/>
 </div>
 
 <div class="mb-3">
@@ -68,6 +71,7 @@
     private List<SearchResult> results { get; set; } = new List<SearchResult>();
 
     private bool isSearching = false;
+    private InputFile? fileInput;
 
     private async Task StartSearch()
     {
@@ -76,7 +80,7 @@
         isSearching = true;
         StateHasChanged(); // Force a re-render. This way the button is disabled while the search is running. 
 
-        var searchInputList = SearchInput.Split("\n");
+        var searchInputList = SearchInput.Split(Environment.NewLine);
 
         foreach (var input in searchInputList)
         {
@@ -94,11 +98,24 @@
         isSearching = false;
     }
 
-    private void TriggerFileImport()
+    private async Task HandFileSelected(InputFileChangeEventArgs e)
     {
+        var file = e.File;
+        SearchInput = string.Empty;
         
+        using var stream = file.OpenReadStream(maxAllowedSize: 1024 * 1024 * 10);
+        using var reader = new StreamReader(stream);
+        var content = await reader.ReadToEndAsync();
+        
+        var lines = content
+            .Split(new[] {"\r", "\n"}, StringSplitOptions.RemoveEmptyEntries)
+            .Select(x => x.Trim())
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .ToList();
+        
+        SearchInput = string.Join(Environment.NewLine, lines);
     }
-
+    
     private void ToggleInputType(string type)
     {
         if (SelectedInputTypes.Contains(type))
