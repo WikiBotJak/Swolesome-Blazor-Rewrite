@@ -23,27 +23,32 @@
         <section class="bg-white rounded shadow p-4 mb-4">
             <div class="d-flex justify-content-between mb-2">
                 <div class="d-flex align-items-center">
-                    <h5 class="fw-bold text-black-50">Results for <span class="text-primary">@String.Join(", ", result.SelectedFields): @result.Term</span></h5>
-                </div>
-                <div class="d-flex align-items-center">
-                    <button class="btn btn-sm btn-outline-secondary me-2">
-                        Copy as text
-                    </button>
-                    <button class="btn btn-sm btn-outline-secondary me-2">
-                        Copy as CSV
-                    </button>
-                    <button class="btn btn-sm btn-outline-secondary">
-                        Copy as JSON
-                    </button>
+                    <h5 class="fw-bold text-black-50">
+                        Results for 
+                        <span class="text-primary">@String.Join(", ", result.SelectedFields): @result.Term</span>
+                    </h5>
                 </div>
             </div>
-            @if (result.jsonData.RootElement.TryGetProperty("error", out var error))
+
+            @if (result.JsonData?.RootElement.TryGetProperty("error", out var error) == true)
             {
                 <p class="text-danger fw-bold">Error: @error.GetString()</p>
             }
+            else if (result.JsonData is not null && result.JsonData.RootElement.TryGetProperty("results", out var arr))
+            {
+                var rows = arr.EnumerateArray()
+                    .Select(item => new SearchResult
+                    {
+                        Data = item.EnumerateObject()
+                            .ToDictionary(p => p.Name, p => (object)p.Value)
+                    })
+                    .ToList();
+
+                <ResultsTable Rows="rows" />
+            }
             else
             {
-                <ResultsTable Rows="@(result.jsonData.RootElement.GetProperty("results").EnumerateArray())"/>
+                <p class="text-muted">No results found.</p>
             }
         </section>
     }

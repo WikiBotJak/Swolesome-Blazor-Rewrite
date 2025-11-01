@@ -1,45 +1,86 @@
 @using System.Text.Json
-
+@using Swolesome_vip.Services
+@using Swolesome_vip.Models
+@inject  ApiService ApiService
+@inject SearchConfigService ConfigService
 @* This component renders a table of JSON objects *@
 
 @foreach (var item in Rows)
 {
     <div class="table-responsive">
-        <table class="table table-bordered table-sm mb-3">
+        <table class="table table-bordered table-sm align-middle">
             <tbody>
             @{
-                var properties = item.EnumerateObject().ToList();
                 bool firstRow = true;
+                var properties = item.Data;
             }
-
             @foreach (var kvp in properties)
             {
-                @* Blazor actaully allows us to use C# code in a Razor file directly like this in markup.
-                Here we use a ternary operator to determine whether to show the row. *@
                 var isTopRow = firstRow;
-                bool showRow = firstRow || IsExpanded(item);
+                bool showRow = isTopRow || item.IsExpanded;
                 if (!showRow) continue;
 
-                <tr class="@GetRowClass(kvp.Name, isTopRow, item)">
-                    <td class="py-2 px-3 font-weight-bold" style="width: 25%;">
+                <tr class="@GetRowClass(isTopRow)">
+                    <td class="py-2 px-3 fw-semibold" style="width: 25%;">
                         <div class="d-flex align-items-center gap-2">
                             @if (isTopRow)
                             {
-                                @* @onclick binds a C# lambda method to the click event.
-                                Here we pass 'item' to the ToggleRow method when clicked *@
                                 <button class="btn btn-sm" @onclick="@(() => ToggleRow(item))">
-                                    @(IsExpanded(item) ? "▼" : "►")
+                                    @(item.IsExpanded ? "▼" : "►")
                                 </button>
                             }
-                            <span>@kvp.Name</span>
+                            <span>@kvp.Key</span>
                         </div>
                     </td>
                     <td class="py-2 px-3 text-break">
-                        @* Render the value by passing it to the RenderJsonValue method.
-                        This shows that we can call C# methods and use variables directly in Razor *@
-                        <span>@RenderJsonValue(kvp.Value)</span>
+                        @{
+                            var expandableType = GetExpandableType(kvp.Key);
+                            if (expandableType is not null)
+                            {
+                                <button class="btn btn-link p-0" 
+                                        disabled="@(item.IsDrilling && item.ActiveChildKey == kvp.Key)"
+                                        @onclick="@(() => DrillDown(item, kvp.Key, kvp.Value?.ToString() ?? string.Empty))">
+                                    @if (item.IsDrilling && item.ActiveChildKey == kvp.Key)
+                                    {
+                                        <span class="text-muted fst-italic">Loading…</span>
+                                    }
+                                    else
+                                    {
+                                        @RenderJsonValue((JsonElement)kvp.Value)
+                                    }
+                                </button>
+                            }
+                            else
+                            {
+                                @RenderJsonValue((JsonElement)kvp.Value)
+                            }
+                        }
                     </td>
                 </tr>
+                
+                @if (item.ExpandedKeys.Contains(kvp.Key))
+                {
+                    var children = item.ChildrenMap[kvp.Key];
+                    <tr>
+                        <td colspan="2" class="ps-4 border-start border-2">
+                            @if (item.IsDrilling && item.ActiveChildKey == kvp.Key)
+                            {
+                                <span class="text-muted fst-italic">Loading…</span>
+                            }
+                            else if (children?.Count > 0)
+                            {
+                                @if (children.First().Depth < ConfigService.Config.MaxDepth)
+                                {
+                                    <ResultsTable Rows="children" />
+                                }
+                                else
+                                {
+                                    <span class="text-muted">Max depth reached</span>
+                                }
+                            }
+                        </td>
+                    </tr>
+                }
 
                 firstRow = false;
             }
@@ -49,40 +90,112 @@
 }
 
 @code {
-    [Parameter] public IEnumerable<JsonElement> Rows { get; set; } = Array.Empty<JsonElement>();
-
-    private HashSet<int> ExpandedRows { get; set; } = new();
-
-    private void ToggleRow(JsonElement item)
+    [Parameter] public List<SearchResult> Rows { get; set; } = new();
+    
+    private string? GetExpandableType(string key)
     {
-        var key = item.GetHashCode();
-        if (!ExpandedRows.Add(key)) ExpandedRows.Remove(key);
+        if (string.IsNullOrWhiteSpace(key)) return null;
+
+        var lower = key.ToLower();
+        // Check exact input types
+        foreach (var type in ConfigService.Config.InputTypes)
+        {
+            if (lower == type.ToLower()) return type;
+        }
+
+        // Check synonyms
+        foreach (var (type, syns) in ConfigService.Config.Synonyms)
+        {
+            if (syns.Any(s => s.ToLower().Equals(lower, StringComparison.OrdinalIgnoreCase)))
+            {
+                return type;
+            }
+        }
+
+        return null;
     }
-
-    private bool IsExpanded(JsonElement item) => ExpandedRows.Contains(item.GetHashCode());
-
-    private string GetRowClass(string key, bool isTopRow, JsonElement item)
+    
+    private async Task DrillDown(SearchResult parentRow, string key, string value)
     {
-        bool hasSourceFilter = item.TryGetProperty("_hasSourceFilter", out var f) && f.GetBoolean();
-        bool isDefinitive = item.TryGetProperty("_isDefinitive", out var d) && d.GetBoolean();
+        // Prevent multiple concurrent fetches
+        if (parentRow.IsDrilling)
+            return;
 
-        if (isTopRow && hasSourceFilter && isDefinitive)
-            return "table-success";        // green
-        if (isTopRow && hasSourceFilter && !isDefinitive)
-            return "table-warning";        // yellow
-        if (isTopRow && !hasSourceFilter)
-            return "table-secondary";      // gray
+        // Already loaded → just toggle visibility
+        if (parentRow.ChildrenMap.ContainsKey(key))
+        {
+            if (parentRow.ExpandedKeys.Contains(key))
+                parentRow.ExpandedKeys.Remove(key);
+            else
+                parentRow.ExpandedKeys.Add(key);
 
-        if (!isTopRow && hasSourceFilter && isDefinitive)
-            return "bg-success text-dark"; // light green
-        if (!isTopRow && hasSourceFilter && !isDefinitive)
-            return "bg-warning text-dark"; // light yellow
-        if (!isTopRow && !hasSourceFilter)
-            return "bg-white";
+            StateHasChanged();
+            return;
+        }
 
-        return "";
+        parentRow.IsDrilling = true;
+        parentRow.ActiveChildKey = key;
+        StateHasChanged();
+
+        try
+        {
+            var expandableType = GetExpandableType(key);
+            if (expandableType is null)
+                return;
+
+            var json = await ApiService.SendRequestAsync(
+                value,
+                new List<string> { expandableType },
+                wildcard: false,
+                caseSensitive: false
+            );
+
+            var children = ParseApiResults(json, parentRow.Depth + 1);
+
+            parentRow.ChildrenMap[key] = children;
+            parentRow.ExpandedKeys.Add(key);
+        }
+        finally
+        {
+            parentRow.IsDrilling = false;
+            parentRow.ActiveChildKey = null;
+            StateHasChanged();
+        }
     }
+    
+    private List<SearchResult> ParseApiResults(JsonDocument json, int depth)
+    {
+        try
+        {
+            var root = json.RootElement;
+            var results = root.TryGetProperty("results", out var arr)
+                ? arr.EnumerateArray()
+                : root.EnumerateArray();
 
+            return results.Select(item => new SearchResult
+            {
+                Data = item.EnumerateObject()
+                    .ToDictionary(p => p.Name, p => (object)p.Value),
+                Depth = depth,
+                ChildrenMap = new Dictionary<string, List<SearchResult>>(),
+                ExpandedKeys = new HashSet<string>()
+            }).ToList();
+        }
+        catch
+        {
+            return new();
+        }
+    }
+    
+    private void ToggleRow(SearchResult item)
+    {
+        item.IsExpanded = !item.IsExpanded;
+        StateHasChanged();
+    }
+    
+    private string GetRowClass(bool isTopRow)
+        => isTopRow ? "table-primary" : "";
+    
     private RenderFragment RenderJsonValue(JsonElement value) => builder =>
     {
         switch (value.ValueKind)

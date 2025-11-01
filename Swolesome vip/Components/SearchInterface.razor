@@ -76,24 +76,27 @@
     private async Task StartSearch()
     {
         results.Clear();
-        if (string.IsNullOrWhiteSpace(SearchInput) || isSearching) return;
-        isSearching = true;
-        StateHasChanged(); // Force a re-render. This way the button is disabled while the search is running. 
+        if (string.IsNullOrWhiteSpace(SearchInput) || isSearching)
+            return;
 
-        var searchInputList = SearchInput.Split(Environment.NewLine);
+        isSearching = true;
+        StateHasChanged();
+
+        var searchInputList = SearchInput
+            .Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries);
 
         foreach (var input in searchInputList)
         {
             var response = await apiService.SendRequestAsync(input, SelectedInputTypes, WildcardEnabled, CaseSensitiveEnabled);
+
             results.Add(new SearchResult
             {
-                jsonData = response,
+                JsonData = response, // ✅ Fixed property name
                 Term = input,
-                SelectedFields = SelectedInputTypes
+                SelectedFields = new List<string>(SelectedInputTypes)
             });
         }
 
-        // InvokeAsync sends an callback to the parent component to update the UI
         await OnSearchCompleted.InvokeAsync(results);
         isSearching = false;
     }

@@ -17,7 +17,7 @@ public class SearchConfig
 
     public Dictionary<string, List<string>> Synonyms { get; set; } = new()
     {
-        { "email", new() { "e-mail", "facebook_email", "email_address" } },
+        { "email", new() { "e-mail", "facebook_email", "email_address", "email", } },
         { "password", new() { "pass", "pass_plain", "crypted_password", "encrypt_pass", "hash", "hash1", "hash2", "m_password", "plain_pass", "members_pass_hash", "member_login_key", "passwd" } },
         { "domain", new() { "site", "website", "host", "adomain", "access_domain", "server" } },
         { "username", new() { "user", "login", "nick", "handle", "uname", "username2", "members_l_username", "members_l_display_name", "display_name", "member_url", "usergroupid" } },
