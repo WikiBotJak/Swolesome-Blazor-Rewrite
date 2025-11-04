@@ -22,12 +22,24 @@
     {
         <section class="bg-white rounded shadow p-4 mb-4">
             <div class="d-flex justify-content-between mb-2">
-                <div class="d-flex align-items-center">
                     <h5 class="fw-bold text-black-50">
                         Results for 
                         <span class="text-primary">@String.Join(", ", result.SelectedFields): @result.Term</span>
                     </h5>
-                </div>
+                    <div class="d-flex align-items-center gap-2">
+                        <button class="btn btn-sm btn-outline-secondary">
+                            Copy as text
+                        </button>
+                        <button class="btn btn-sm btn-outline-secondary">
+                            Copy as CSV
+                        </button>
+                        <button class="btn btn-sm btn-outline-secondary">
+                            Copy as JSON
+                        </button>
+                        <button class="btn btn-sm btn-outline-secondary">
+                            Copy as HTML
+                        </button>
+                    </div>
             </div>
 
             @if (result.JsonData?.RootElement.TryGetProperty("error", out var error) == true)

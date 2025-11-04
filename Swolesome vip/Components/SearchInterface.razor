@@ -28,10 +28,10 @@
 <div class="mb-3">
     <div class="d-flex align-items-center gap-4 mt-2">
         @* This checkbox is two-way bound to the WildcardEnabled variable. You get the idea for the rest of the @bind attributes *@
-        <label class="d-inline-flex align-items-center">
+        <label class="d-inline-flex align-items-center gap-1">
             <input type="checkbox" @bind="WildcardEnabled" class="mr-2"/>Wildcard
         </label>
-        <label class="d-inline-flex align-items-center">
+        <label class="d-inline-flex align-items-center gap-1">
             <input type="checkbox" @bind="CaseSensitiveEnabled" class="mr-2"/>Case Sensitive
         </label>
     </div>
@@ -64,7 +64,11 @@
 
 @code {
     [Parameter] public EventCallback<List<SearchResult>> OnSearchCompleted { get; set; }
-    private List<string> SelectedInputTypes { get; set; } = new();
+
+    private List<string> SelectedInputTypes { get; set; } = new List<string>
+    {
+        "username", "email"
+    };
     private string SearchInput { get; set; } = String.Empty;
     private bool WildcardEnabled { get; set; }
     private bool CaseSensitiveEnabled { get; set; }
