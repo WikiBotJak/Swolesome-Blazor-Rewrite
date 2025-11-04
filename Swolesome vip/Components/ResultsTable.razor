@@ -32,28 +32,43 @@
                             <span>@kvp.Key</span>
                         </div>
                     </td>
-                    <td class="py-2 px-3 text-break">
+                    <td class="py-2 px-3 text-break align-middle">
                         @{
                             var expandableType = GetExpandableType(kvp.Key);
-                            if (expandableType is not null)
-                            {
-                                <button class="btn btn-link p-0" 
-                                        disabled="@(item.IsDrilling && item.ActiveChildKey == kvp.Key)"
-                                        @onclick="@(() => DrillDown(item, kvp.Key, kvp.Value?.ToString() ?? string.Empty))">
-                                    @if (item.IsDrilling && item.ActiveChildKey == kvp.Key)
+                            bool isDrilling = item.IsDrilling && item.ActiveChildKey == kvp.Key;
+                            bool isExpanded = item.ExpandedKeys.Contains(kvp.Key);
+                        }
+
+                        @if (expandableType is not null)
+                        {
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span>@RenderJsonValue((JsonElement)kvp.Value)</span>
+
+                                <span class="expand-toggle ms-2"
+                                      role="button"
+                                      tabindex="0"
+                                      aria-expanded="@isExpanded"
+                                      title="Expand or collapse"
+                                      @onclick="@(() => DrillDown(item, kvp.Key, kvp.Value?.ToString() ?? string.Empty))">
+
+                                    @if (isDrilling)
                                     {
-                                        <span class="text-muted fst-italic">Loading…</span>
+                                        <span class="spinner-border spinner-border-sm text-muted" role="status" aria-hidden="true"></span>
+                                    }
+                                    else if (isExpanded)
+                                    {
+                                        <span>▼</span>
                                     }
                                     else
                                     {
-                                        @RenderJsonValue((JsonElement)kvp.Value)
+                                        <span>►</span>
                                     }
-                                </button>
-                            }
-                            else
-                            {
-                                @RenderJsonValue((JsonElement)kvp.Value)
-                            }
+                                </span>
+                            </div>
+                        }
+                        else
+                        {
+                            @RenderJsonValue((JsonElement)kvp.Value)
                         }
                     </td>
                 </tr>
