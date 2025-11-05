@@ -1,5 +1,6 @@
 @inject ApiService apiService
 @inject SearchConfigService ConfigService
+@using System.Text.Json
 @using Swolesome_vip.Models
 @using Swolesome_vip.Services
 
@@ -52,6 +53,35 @@
 </div>
 
 <div class="mb-3">
+    <label class="form-label fw-medium mb-2">Sources (optional)</label>
+
+    <div class="dropdown @(sourcesDropdownOpen ? "show" : "")">
+        <button class="btn btn-outline-secondary dropdown-toggle btn-sm"
+                type="button"
+                @onclick="ToggleSourcesDropdown"
+                aria-expanded="@(sourcesDropdownOpen)">
+            Select Sources (@SelectedSources.Count)
+        </button>
+
+        <div class="dropdown-menu p-2 @(sourcesDropdownOpen ? "show" : "")"
+             style="max-height: 300px; overflow-y: auto;">
+            @foreach (var source in ConfigService.Config.SourceTypes.OrderBy(s => s))
+            {
+                <div class="form-check">
+                    <input class="form-check-input"
+                           type="checkbox"
+                           id="source-@source"
+                           checked="@(SelectedSources.Contains(source))"
+                           @onchange="() => ToggleSource(source)" />
+                    <label class="form-check-label small" for="source-@source">@source</label>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+
+<div class="mb-3">
     @if (isSearching)
     {
         <button class="btn btn-primary" disabled><i class="fa-solid fa-spinner fa-spin"></i> Searching...</button>   
@@ -65,6 +95,7 @@
 @code {
     [Parameter] public EventCallback<List<SearchResult>> OnSearchCompleted { get; set; }
 
+    private List<string> SelectedSources { get; set; } = new();
     private List<string> SelectedInputTypes { get; set; } = new List<string>
     {
         "username", "email"
@@ -74,6 +105,7 @@
     private bool CaseSensitiveEnabled { get; set; }
     private List<SearchResult> results { get; set; } = new List<SearchResult>();
 
+    private bool sourcesDropdownOpen = false;
     private bool isSearching = false;
     private InputFile? fileInput;
 
@@ -88,14 +120,54 @@
 
         var searchInputList = SearchInput
             .Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries);
+        var loweredSources = SelectedSources
+            .Select(s => s.ToLowerInvariant())
+            .ToList();
 
         foreach (var input in searchInputList)
         {
             var response = await apiService.SendRequestAsync(input, SelectedInputTypes, WildcardEnabled, CaseSensitiveEnabled);
+            if (response.RootElement.TryGetProperty("error", out var errorProp) ||
+                !response.RootElement.TryGetProperty("results", out var resultsArray))
+            {
+                // Wrap the response in a list if it contains an error, otherwise empty list
+                var jsonData = errorProp.ValueKind != JsonValueKind.Undefined
+                    ? new List<JsonElement> { response.RootElement }
+                    : new List<JsonElement>();
+
+                results.Add(new SearchResult
+                {
+                    JsonData = jsonData,
+                    Term = input,
+                    SelectedFields = new List<string>(SelectedInputTypes)
+                });
+
+                continue;
+            }
+
+            var jsonResults = resultsArray.EnumerateArray();
+
+            IEnumerable<JsonElement> filteredResults = jsonResults;
+
+            if (loweredSources.Count > 0)
+            {
+                filteredResults = jsonResults.Where(r =>
+                {
+                    if (!r.TryGetProperty("source", out var srcProp))
+                        return false;
+
+                    var src = srcProp.GetString();
+                    if (string.IsNullOrEmpty(src))
+                        return false;
+
+                    var srcLower = src.ToLowerInvariant();
+                    return loweredSources.Any(sel => srcLower.Contains(sel));
+                });
+            }
 
             results.Add(new SearchResult
             {
-                JsonData = response, // ✅ Fixed property name
+                JsonData = filteredResults.ToList(),
                 Term = input,
                 SelectedFields = new List<string>(SelectedInputTypes)
             });
@@ -123,6 +195,11 @@
         SearchInput = string.Join(Environment.NewLine, lines);
     }
     
+    private void ToggleSourcesDropdown()
+    {
+        sourcesDropdownOpen = !sourcesDropdownOpen;
+    }
+    
     private void ToggleInputType(string type)
     {
         if (SelectedInputTypes.Contains(type))
@@ -133,5 +210,13 @@
         {
             SelectedInputTypes.Add(type);
         }
+    }
+    
+    private void ToggleSource(string source)
+    {
+        if (SelectedSources.Contains(source))
+            SelectedSources.Remove(source);
+        else
+            SelectedSources.Add(source);
     }
 }

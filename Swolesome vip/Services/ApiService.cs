@@ -33,7 +33,6 @@ public class ApiService
         var jsonBody = JsonSerializer.Serialize(body);
         using var content = new StringContent(jsonBody, Encoding.UTF8, "application/json");
         using var response = await _httpClient.PostAsync(targetUrl, content);
-        response.EnsureSuccessStatusCode();
 
         await using var responseStream = await response.Content.ReadAsStreamAsync();
         return await JsonDocument.ParseAsync(responseStream);

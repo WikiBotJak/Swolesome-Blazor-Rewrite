@@ -12,5 +12,6 @@ public class SearchResult
     public string Term { get; set; } = string.Empty;
     public List<string> SelectedFields { get; set; } = new();
     public string? ActiveChildKey { get; set; }
-    public JsonDocument? JsonData { get; set; }
+    // public JsonDocument? JsonData { get; set; }
+    public List<JsonElement> JsonData { get; set; } = new();
 }

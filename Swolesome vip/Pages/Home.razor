@@ -42,13 +42,18 @@
                     </div>
             </div>
 
-            @if (result.JsonData?.RootElement.TryGetProperty("error", out var error) == true)
+            @if (result.JsonData is null || !result.JsonData.Any())
             {
-                <p class="text-danger fw-bold">Error: @error.GetString()</p>
+                <p class="text-muted">No results found.</p>
             }
-            else if (result.JsonData is not null && result.JsonData.RootElement.TryGetProperty("results", out var arr))
+            else if (result.JsonData.Count == 1 &&
+                     result.JsonData[0].TryGetProperty("error", out var errorProp))
             {
-                var rows = arr.EnumerateArray()
+                <p class="text-danger fw-bold">Error: @errorProp.GetString()</p>
+            }
+            else
+            {
+                var rows = result.JsonData
                     .Select(item => new SearchResult
                     {
                         Data = item.EnumerateObject()
@@ -57,10 +62,6 @@
                     .ToList();
 
                 <ResultsTable Rows="rows" />
-            }
-            else
-            {
-                <p class="text-muted">No results found.</p>
             }
         </section>
     }
