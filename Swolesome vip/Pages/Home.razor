@@ -1,5 +1,6 @@
 ﻿@page "/"
 @using Swolesome_vip.Models
+@inject IJSRuntime JS
 
 @* 
   This is the main page of the Blazor app. 
@@ -27,7 +28,7 @@
                         <span class="text-primary">@String.Join(", ", result.SelectedFields): @result.Term</span>
                     </h5>
                     <div class="d-flex align-items-center gap-2">
-                        <button class="btn btn-sm btn-outline-secondary">
+                        <button class="btn btn-sm btn-outline-secondary" @onclick="() => ExportResult(result, 3)">
                             Download as text
                         </button>
                         <button class="btn btn-sm btn-outline-secondary">
@@ -77,5 +78,66 @@
     private void HandleSearchCompleted(List<SearchResult> ctx)
     {
         Results = ctx;
+    }
+
+    private async Task ExportResult(SearchResult result, int format)
+    {
+        if (result?.JsonData == null || !result.JsonData.Any())
+            return;
+        
+        string extension = format switch
+        {
+            0 => "json",
+            1 => "csv",
+            2 => "html",
+            3 => "txt",
+            _ => "txt"
+        };
+
+        string content = format switch
+        {
+            0 => System.Text.Json.JsonSerializer.Serialize(result.JsonData, new System.Text.Json.JsonSerializerOptions { WriteIndented = true }),
+            1 => ToCsv(result),
+            2 => ToHtml(result),
+            3 => ToText(result),
+            _ => string.Empty
+        };
+
+        var safeTerm = string.Join("_", result.Term.Split(Path.GetInvalidFileNameChars(), StringSplitOptions.RemoveEmptyEntries));
+        var fileName = $"swolesome_{safeTerm}_{DateTime.Now:yyyyMMdd_HHmmss}.{extension}";
+        await DownloadFileAsync(fileName, content);
+    }
+
+    private string ToText(SearchResult result)
+    {
+        var sb = new System.Text.StringBuilder();
+        foreach (var item in  result.JsonData)
+        {
+            foreach (var prop in item.EnumerateObject())
+            {
+                sb.AppendLine($"{prop.Name}: {prop.Value}");
+            }
+            sb.AppendLine(new String('-', 60));
+        }
+        
+        return sb.ToString();
+    }
+    
+    private string ToCsv(SearchResult result)
+    {
+        return "example";
+    }
+
+    private string ToHtml(SearchResult result)
+    {
+        return "<html><body>example</body></html>";
+    }
+
+    
+    private async Task DownloadFileAsync(string fileName, string content)
+    {
+        var bytes = System.Text.Encoding.UTF8.GetBytes(content);
+        using var streamRef = new Microsoft.JSInterop.DotNetStreamReference(new MemoryStream(bytes));
+        await JS.InvokeVoidAsync("downloadFileFromStream", fileName, streamRef);
     }
 }
