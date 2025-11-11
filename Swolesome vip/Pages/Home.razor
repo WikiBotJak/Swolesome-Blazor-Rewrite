@@ -1,5 +1,7 @@
 ﻿@page "/"
-@using Swolesome_vip.Models
+@using System.Globalization;
+@using Swolesome_vip.Models;
+@using CsvHelper;
 @inject IJSRuntime JS
 
 @* 
@@ -31,7 +33,7 @@
                         <button class="btn btn-sm btn-outline-secondary" @onclick="() => ExportResult(result, 3)">
                             Download as text
                         </button>
-                        <button class="btn btn-sm btn-outline-secondary">
+                        <button class="btn btn-sm btn-outline-secondary" @onclick="() => ExportResult(result, 1)">
                             Download as CSV
                         </button>
                         <button class="btn btn-sm btn-outline-secondary" @onclick="() => ExportResult(result, 0)">
@@ -122,12 +124,47 @@
         
         return sb.ToString();
     }
-    
+
     private string ToCsv(SearchResult result)
     {
-        return "example";
-    }
+        // Convert JsonData into dictionaries of string->JsonElement first
+        var rows = result.JsonData
+            .Select(item => item.EnumerateObject()
+                .ToDictionary(p => p.Name, p => p.Value))
+            .ToList();
 
+        if (!rows.Any())
+            return string.Empty;
+
+        // Union all keys across rows and preserve a stable order
+        var headers = rows
+            .SelectMany(d => d.Keys)
+            .Distinct()
+            .ToList();
+
+        using var sw = new StringWriter();
+        using (var csv = new CsvWriter(sw, CultureInfo.InvariantCulture))
+        {
+            foreach (var header in headers)
+                csv.WriteField(header);
+            csv.NextRecord();
+            
+            foreach (var row in rows)
+            {
+                foreach (var header in headers)
+                {
+                    if (row.TryGetValue(header, out var je))
+                        csv.WriteField(je);
+                    else
+                        csv.WriteField(string.Empty);
+                }
+                csv.NextRecord();
+            }
+        }
+
+        return sw.ToString();
+    }
+    
     private string ToHtml(SearchResult result)
     {
         return "<html><body>example</body></html>";
