@@ -3,6 +3,7 @@
 @using Swolesome_vip.Models
 @inject  ApiService ApiService
 @inject SearchConfigService ConfigService
+@using Swolesome_vip.Utils
 @* This component renders a table of JSON objects *@
 
 @foreach (var item in Rows)
@@ -42,7 +43,7 @@
                         @if (expandableType is not null)
                         {
                             <div class="d-flex justify-content-between align-items-center">
-                                <span>@RenderJsonValue((JsonElement)kvp.Value)</span>
+                                <span>@RenderJsonValue.Render((JsonElement)kvp.Value)</span>
 
                                 <span class="expand-toggle ms-2"
                                       role="button"
@@ -68,7 +69,7 @@
                         }
                         else
                         {
-                            @RenderJsonValue((JsonElement)kvp.Value)
+                            @RenderJsonValue.Render((JsonElement)kvp.Value)
                         }
                     </td>
                 </tr>
@@ -210,32 +211,4 @@
     
     private string GetRowClass(bool isTopRow)
         => isTopRow ? "table-primary" : "";
-    
-    private RenderFragment RenderJsonValue(JsonElement value) => builder =>
-    {
-        switch (value.ValueKind)
-        {
-            case JsonValueKind.String:
-                builder.AddContent(0, value.GetString());
-                break;
-            case JsonValueKind.Number:
-                builder.AddContent(0, value.GetRawText());
-                break;
-            case JsonValueKind.True:
-            case JsonValueKind.False:
-                builder.AddContent(0, value.GetBoolean().ToString());
-                break;
-            case JsonValueKind.Null:
-                break;
-            case JsonValueKind.Array:
-                var items = value.EnumerateArray()
-                    .Select(e => e.ValueKind == JsonValueKind.String ? e.GetString() : e.GetRawText());
-                builder.AddContent(0, string.Join(", ", items));
-                break;
-            case JsonValueKind.Object:
-            default:
-                builder.AddContent(0, value.GetRawText());
-                break;
-        }
-    };
 }

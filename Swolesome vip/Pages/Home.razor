@@ -1,7 +1,12 @@
 ﻿@page "/"
+@using System.Collections
 @using System.Globalization;
+@using System.Net
+@using System.Text
+@using System.Text.Json
 @using Swolesome_vip.Models;
 @using CsvHelper;
+@using Swolesome_vip.Utils
 @inject IJSRuntime JS
 
 @* 
@@ -39,7 +44,7 @@
                         <button class="btn btn-sm btn-outline-secondary" @onclick="() => ExportResult(result, 0)">
                             Download as JSON
                         </button>
-                        <button class="btn btn-sm btn-outline-secondary">
+                        <button class="btn btn-sm btn-outline-secondary" @onclick="() => ExportResult(result, 2)">
                             Download as HTML
                         </button>
                     </div>
@@ -167,10 +172,32 @@
     
     private string ToHtml(SearchResult result)
     {
-        return "<html><body>example</body></html>";
+        if (result?.JsonData == null || !result.JsonData.Any())
+            return "<table></table>";
+
+        var sb = new StringBuilder();
+
+        foreach (var item in result.JsonData)
+        {
+            sb.Append("<table style=\"border-collapse:collapse;width:100%;margin-bottom:10px;table-layout:auto;\">");
+
+            foreach (var prop in item.EnumerateObject())
+            {
+                sb.Append("<tr>")
+                    .Append("<td style=\"width:30%;padding:6px;font-weight:bold;border:1px solid #ccc;\">")
+                    .Append(WebUtility.HtmlEncode(prop.Name))
+                    .Append("</td>")
+                    .Append("<td style=\"padding:6px;border:1px solid #ccc;\">")
+                    .Append(WebUtility.HtmlEncode(RenderJsonValue.Render(prop.Value)))
+                    .Append("</td></tr>");
+            }
+
+            sb.Append("</table>");
+        }
+
+        return sb.ToString();
     }
 
-    
     private async Task DownloadFileAsync(string fileName, string content)
     {
         var bytes = System.Text.Encoding.UTF8.GetBytes(content);
