@@ -9,16 +9,6 @@
 @using Swolesome_vip.Utils
 @inject IJSRuntime JS
 
-@* 
-  This is the main page of the Blazor app. 
-
-  - It displays a search interface at the top using the `SearchInterface` component.
-  - When a search is completed, the results are passed to this page via `HandleSearchCompleted`.
-  - We then display the results using the `ResultsTable` component.
-  
-  Note: This page uses conditional rendering (`if` statements) and loops (`foreach`) to dynamically show results.
-*@
-
 <section class="bg-white rounded shadow p-4 mb-4">
     <SearchInterface OnSearchCompleted="HandleSearchCompleted" />
 </section>
@@ -28,57 +18,47 @@
     <hr />
     @foreach (var result in Results)
     {
+        var rows = result.JsonData
+            .Select(item => new SearchResult
+            {
+                Data = item.EnumerateObject().ToDictionary(p => p.Name, p => (object)p.Value),
+                ChildrenMap = new Dictionary<string, List
+                    <SearchResult>>(),
+                ExpandedKeys = new HashSet
+                    <string>()
+            })
+            .ToList();
         <section class="bg-white rounded shadow p-4 mb-4">
             <div class="d-flex justify-content-between mb-2">
-                    <h5 class="fw-bold text-black-50">
-                        Results for 
-                        <span class="text-primary">@String.Join(", ", result.SelectedFields): @result.Term</span>
-                    </h5>
-                    <div class="d-flex align-items-center gap-2">
-                        <button class="btn btn-sm btn-outline-secondary" @onclick="() => ExportResult(result, 3)">
-                            Download as text
-                        </button>
-                        <button class="btn btn-sm btn-outline-secondary" @onclick="() => ExportResult(result, 1)">
-                            Download as CSV
-                        </button>
-                        <button class="btn btn-sm btn-outline-secondary" @onclick="() => ExportResult(result, 0)">
-                            Download as JSON
-                        </button>
-                        <button class="btn btn-sm btn-outline-secondary" @onclick="() => ExportResult(result, 2)">
-                            Download as HTML
-                        </button>
-                    </div>
-            </div>
+                <h5 class="fw-bold text-black-50">
+                    Results for
+                    <span class="text-primary">@String.Join(", ", result.SelectedFields): @result.Term</span>
+                </h5>
 
+                <div class="d-flex align-items-center gap-2 mb-2">
+                    <button class="btn btn-sm btn-outline-secondary" @onclick="() => ExportResult(result, 3, rows)">Download as text</button>
+                    <button class="btn btn-sm btn-outline-secondary" @onclick="() => ExportResult(result, 1, rows)">Download as CSV</button>
+                    <button class="btn btn-sm btn-outline-secondary" @onclick="() => ExportResult(result, 0, rows)">Download as JSON</button>
+                    <button class="btn btn-sm btn-outline-secondary" @onclick="() => ExportResult(result, 2, rows)">Download as HTML</button>
+                </div>
+            </div>
+            
             @if (result.JsonData is null || !result.JsonData.Any())
             {
                 <p class="text-muted">No results found.</p>
             }
-            else if (result.JsonData.Count == 1 &&
-                     result.JsonData[0].TryGetProperty("error", out var errorProp))
+            else if (result.JsonData.Count == 1 && result.JsonData[0].TryGetProperty("error", out var errorProp))
             {
                 <p class="text-danger fw-bold">Error: @errorProp.GetString()</p>
             }
             else
             {
-                var rows = result.JsonData
-                    .Select(item => new SearchResult
-                    {
-                        Data = item.EnumerateObject()
-                            .ToDictionary(p => p.Name, p => (object)p.Value)
-                    })
-                    .ToList();
-
-                <ResultsTable Rows="rows" />
+                <ResultsTable Rows="rows"/>
             }
         </section>
     }
 }
 
-@* @code is a C# syntax that allows us to use C# code in a Razor file.
-    In this case, we use it to define a method that will be called when the search is completed.
-    We also use it to define a property that will hold the results of the search.
-*@
 @code {
     [Parameter] public List<SearchResult> Results { get; set; } = new List<SearchResult>();
 
@@ -86,27 +66,38 @@
     {
         Results = ctx;
     }
-
-    private async Task ExportResult(SearchResult result, int format)
+    
+    private List<Dictionary<string, object>> FlattenExpanded(List<SearchResult> rows)
     {
-        if (result?.JsonData == null || !result.JsonData.Any())
-            return;
-        
-        string extension = format switch
-        {
-            0 => "json",
-            1 => "csv",
-            2 => "html",
-            3 => "txt",
-            _ => "txt"
-        };
+        var list = new List<Dictionary<string, object>>();
 
+        foreach (var row in rows)
+        {
+            list.Add(row.Data.ToDictionary(k => k.Key, k => k.Value));
+
+            foreach (var key in row.ExpandedKeys)
+            {
+                if (row.ChildrenMap.TryGetValue(key, out var children))
+                    list.AddRange(FlattenExpanded(children));
+            }
+        }
+
+        return list;
+    }
+
+    private async Task ExportResult(SearchResult result, int format, List<SearchResult> rows)
+    {
+        if (rows == null || rows.Count == 0) return;
+
+        var exportRows = FlattenExpanded(rows);
+
+        string extension = format switch { 0 => "json", 1 => "csv", 2 => "html", 3 => "txt", _ => "txt" };
         string content = format switch
         {
-            0 => System.Text.Json.JsonSerializer.Serialize(result.JsonData, new System.Text.Json.JsonSerializerOptions { WriteIndented = true }),
-            1 => ToCsv(result),
-            2 => ToHtml(result),
-            3 => ToText(result),
+            0 => JsonSerializer.Serialize(exportRows, new JsonSerializerOptions { WriteIndented = true }),
+            1 => ToCsv(exportRows),
+            2 => ToHtml(exportRows),
+            3 => ToText(exportRows),
             _ => string.Empty
         };
 
@@ -114,84 +105,59 @@
         var fileName = $"swolesome_{safeTerm}_{DateTime.Now:yyyyMMdd_HHmmss}.{extension}";
         await DownloadFileAsync(fileName, content);
     }
-
-    private string ToText(SearchResult result)
+    
+    private string ToText(List<Dictionary<string, object>> rows)
     {
-        var sb = new System.Text.StringBuilder();
-        foreach (var item in  result.JsonData)
+        var sb = new StringBuilder();
+        foreach (var row in rows)
         {
-            foreach (var prop in item.EnumerateObject())
-            {
-                sb.AppendLine($"{prop.Name}: {prop.Value}");
-            }
-            sb.AppendLine(new String('-', 60));
+            foreach (var kv in row)
+                sb.AppendLine($"{kv.Key}: {kv.Value}");
+            sb.AppendLine(new string('-', 60));
         }
-        
         return sb.ToString();
     }
 
-    private string ToCsv(SearchResult result)
+    private string ToCsv(List<Dictionary<string, object>> rows)
     {
-        // Convert JsonData into dictionaries of string->JsonElement first
-        var rows = result.JsonData
-            .Select(item => item.EnumerateObject()
-                .ToDictionary(p => p.Name, p => p.Value))
-            .ToList();
+        if (!rows.Any()) return string.Empty;
 
-        if (!rows.Any())
-            return string.Empty;
-
-        // Union all keys across rows and preserve a stable order
-        var headers = rows
-            .SelectMany(d => d.Keys)
-            .Distinct()
-            .ToList();
+        var headers = rows.SelectMany(r => r.Keys).Distinct().ToList();
 
         using var sw = new StringWriter();
         using (var csv = new CsvWriter(sw, CultureInfo.InvariantCulture))
         {
-            foreach (var header in headers)
-                csv.WriteField(header);
+            foreach (var h in headers) csv.WriteField(h);
             csv.NextRecord();
-            
+
             foreach (var row in rows)
             {
-                foreach (var header in headers)
-                {
-                    if (row.TryGetValue(header, out var je))
-                        csv.WriteField(je);
-                    else
-                        csv.WriteField(string.Empty);
-                }
+                foreach (var h in headers)
+                    csv.WriteField(row.TryGetValue(h, out var val) ? val : "");
                 csv.NextRecord();
             }
         }
 
         return sw.ToString();
     }
-    
-    private string ToHtml(SearchResult result)
-    {
-        if (result?.JsonData == null || !result.JsonData.Any())
-            return "<table></table>";
 
+    private string ToHtml(List<Dictionary<string, object>> rows)
+    {
         var sb = new StringBuilder();
 
-        foreach (var item in result.JsonData)
+        foreach (var row in rows)
         {
             sb.Append("<table style=\"border-collapse:collapse;width:100%;margin-bottom:10px;table-layout:auto;\">");
-
-            foreach (var prop in item.EnumerateObject())
+            foreach (var kv in row)
             {
                 sb.Append("<tr>")
                     .Append("<td style=\"width:30%;padding:6px;font-weight:bold;border:1px solid #ccc;\">")
-                    .Append(WebUtility.HtmlEncode(prop.Name))
+                    .Append(WebUtility.HtmlEncode(kv.Key))
                     .Append("</td>")
                     .Append("<td style=\"padding:6px;border:1px solid #ccc;\">")
-                    .Append(WebUtility.HtmlEncode(RenderJsonValue.Render(prop.Value)))
+                    .Append(WebUtility.HtmlEncode(kv.Value?.ToString() ?? ""))
                     .Append("</td></tr>");
             }
-
             sb.Append("</table>");
         }
 
@@ -200,7 +166,7 @@
 
     private async Task DownloadFileAsync(string fileName, string content)
     {
-        var bytes = System.Text.Encoding.UTF8.GetBytes(content);
+        var bytes = Encoding.UTF8.GetBytes(content);
         using var streamRef = new Microsoft.JSInterop.DotNetStreamReference(new MemoryStream(bytes));
         await JS.InvokeVoidAsync("downloadFileFromStream", fileName, streamRef);
     }

@@ -3,6 +3,7 @@ using System.Text.Json;
 
 public class SearchResult
 {
+    public string Key { get; set; } = string.Empty;
     public Dictionary<string, object> Data { get; set; } = new();
     public Dictionary<string, List<SearchResult>> ChildrenMap { get; set; } = new();
     public HashSet<string> ExpandedKeys { get; set; } = new();
