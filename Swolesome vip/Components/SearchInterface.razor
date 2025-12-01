@@ -6,29 +6,23 @@
 
 <div class="d-flex justify-content-between">
     <h4 class="text-lg font-semibold mb-2">Search</h4>
-    <button class="btn btn-info"><i class="fa fa-gear"></i> Config</button>
+    <ConfigModel />
 </div>
 
 <div class="mb-3">
-    <label class="fw-semibold d-block mb-2">
+    <div class="d-block mb-2">
         Input (one per line)
-        @* This button triggers a file import when clicked, calling function TriggerFileImport *@
-        @* <button type="button" class="btn btn-sm btn-outline-primary ms-2" *@
-        @*         @onclick="TriggerFileImport"> *@
-        @*     <i class="fa-solid fa-file-import me-1"></i> Import *@
-        @* </button> *@
         <label class="btn btn-sm btn-outline-primary ms-2 btn-file">
             <i class="fa-solid fa-file-import me-1"></i> Import
             <InputFile OnChange="HandFileSelected" ref="fileInput" accept=".txt" class="d-none" />
         </label>
-    </label>
+    </div>
     @* This textarea is two-way bound to the SearchInput variable. *@
     <textarea @bind="SearchInput" rows="5" class="form-control"></textarea>
 </div>
 
 <div class="mb-3">
     <div class="d-flex align-items-center gap-4 mt-2">
-        @* This checkbox is two-way bound to the WildcardEnabled variable. You get the idea for the rest of the @bind attributes *@
         <label class="d-inline-flex align-items-center gap-1">
             <input type="checkbox" @bind="WildcardEnabled" class="mr-2"/>Wildcard
         </label>
@@ -41,7 +35,6 @@
 <div class="mb-3">
     <label class="form-label fw-medium mb-2">Input Types (select at least one)</label>
     <div class="d-flex gap-2 flex-wrap">
-        @* Loop through all configured input types and create a checkbox for each *@
         @foreach (var type in ConfigService.Config.InputTypes)
         {
             <input type="checkbox" class="btn-check" id="btn-check-@type" autocomplete="off"
@@ -94,7 +87,8 @@
 
 @code {
     [Parameter] public EventCallback<List<SearchResult>> OnSearchCompleted { get; set; }
-
+    
+    
     private List<string> SelectedSources { get; set; } = new();
     private List<string> SelectedInputTypes { get; set; } = new List<string>
     {

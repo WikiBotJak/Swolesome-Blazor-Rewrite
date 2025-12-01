@@ -3,7 +3,7 @@ using Swolesome_vip.Models;
 // For now, this just loaads the config from a model, but I plan to add to this service support for saving the config to local storage and of course loading from there.
 public class SearchConfigService
 {
-    public SearchConfig Config { get; private set; }
+    public SearchConfig Config { get; set; }
 
     public SearchConfigService()
     {

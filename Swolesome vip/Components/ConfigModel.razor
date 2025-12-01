@@ -1,5 +1,395 @@
-<h3>ConfigModel</h3>
+@inject IJSRuntime JS
+@using System.Text.Json
+@using Swolesome_vip.Models
+@using Swolesome_vip.Services
+@inject SearchConfigService ConfigService
+
+<div aria-live="polite" aria-atomic="true" class="position-relative">
+    <div class="toast-container position-fixed bottom-0 end-0 p-3">
+        @foreach (var toast in Toasts)
+        {
+            <div class="toast show bg-@toast.Type text-white border-0 mb-2">
+                <div class="d-flex">
+                    <div class="toast-body">
+                        @toast.Message
+                    </div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto"
+                            @onclick="() => RemoveToast(toast)"></button>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+<button class="btn btn-info" @onclick="toggleConfigModel"><i class="fa fa-gear"></i> Config</button>
+
+@if (showConfigModel)
+{
+    <div class="modal fade show" id="configModal" tabindex="-1" role="dialog"
+         style="display: block; background-color: rgba(0,0,0,0.5)" aria-modal="true">
+        <div class="modal-dialog modal-xl modal-dialog-scrollable" role="document">
+            <div class="modal-content">
+
+                <!-- Header -->
+                <div class="modal-header">
+                    <h5 class="modal-title">Search Configuration</h5>
+                    <button type="button" class="btn btn-close" data-bs-dismiss="modal" aria-label="Close" @onclick="toggleConfigModel"></button>
+                </div>
+
+                <!-- Body -->
+                <div class="modal-body">
+                    <div class="accordion" id="configAccordion">
+
+                        <!-- SourceTypes -->
+                        <div class="accordion-item">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button" type="button" data-bs-toggle="collapse"
+                                        data-bs-target="#collapseSourceTypes">
+                                    Source Types
+                                </button>
+                            </h2>
+                            <div id="collapseSourceTypes" class="accordion-collapse collapse show">
+                                <div class="accordion-body">
+                                    <div class="d-flex flex-wrap gap-2 mb-2">
+                                        @foreach (var item in Config.SourceTypes.ToList())
+                                        {
+                                            <div class="input-group" style="width:auto;">
+                                                <input class="form-control form-control-sm" value="@item"
+                                                       @onchange="e => UpdateList(Config.SourceTypes, item, e.Value?.ToString())"
+                                                       style="min-width:120px;"/>
+                                                <button class="btn btn-danger btn-sm"
+                                                        @onclick="() => RemoveItem(Config.SourceTypes, item)">×
+                                                </button>
+                                            </div>
+                                        }
+                                    </div>
+                                    <div class="input-group" style="width:auto;">
+                                        <input class="form-control form-control-sm" @bind="_newSourceType"
+                                               placeholder="Add new..." style="min-width:120px;"/>
+                                        <button class="btn btn-success btn-sm" @onclick="AddSourceType">Add</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- InputTypes -->
+                        <div class="accordion-item">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                                        data-bs-target="#collapseInputTypes">
+                                    Input Types
+                                </button>
+                            </h2>
+                            <div id="collapseInputTypes" class="accordion-collapse collapse">
+                                <div class="accordion-body d-flex flex-wrap gap-2">
+                                    <div class="d-flex flex-wrap gap-2 mb-2">
+                                        @foreach (var item in Config.InputTypes.ToList())
+                                        {
+                                            <div class="input-group" style="width:auto;">
+                                                <input class="form-control form-control-sm" value="@item"
+                                                       @onchange="e => UpdateList(Config.InputTypes, item, e.Value?.ToString())"
+                                                       style="min-width:120px;"/>
+                                                <button class="btn btn-danger btn-sm"
+                                                        @onclick="() => RemoveItem(Config.InputTypes, item)">×
+                                                </button>
+                                            </div>
+                                        }
+                                    </div>
+                                    <div class="input-group">
+                                        <input class="form-control form-control-sm" @bind="_newInputType"
+                                               placeholder="Add new..." style="min-width:120px;"/>
+                                        <button class="btn btn-success btn-sm" @onclick="AddInputType">Add</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Synonyms -->
+                        <div class="accordion-item">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                                        data-bs-target="#collapseSynonyms">
+                                    Synonyms
+                                </button>
+                            </h2>
+                            <div id="collapseSynonyms" class="accordion-collapse collapse">
+                                <div class="accordion-body">
+                                    @foreach (var pair in Config.Synonyms.ToList())
+                                    {
+                                        <div class="bg-light bg-gradient p-3 rounded mb-2">
+                                            <h6>@pair.Key</h6>
+                                            <div class="d-flex flex-wrap gap-2 mb-2">
+                                                @foreach (var syn in pair.Value.ToList())
+                                                {
+                                                    <div class="input-group" style="width:auto;">
+                                                        <input class="form-control form-control-sm" value="@syn"
+                                                               @onchange="e => UpdateSynonym(pair.Key, syn, e.Value?.ToString())"
+                                                               style="min-width:120px;"/>
+                                                        <button class="btn btn-danger btn-sm"
+                                                                @onclick="() => RemoveSynonym(pair.Key, syn)">×
+                                                        </button>
+                                                    </div>
+                                                }
+                                            </div>
+                                            <div class="input-group" style="width:auto;">
+                                                <input class="form-control form-control-sm" @bind="_newSynonym"
+                                                       placeholder="Add..." style="min-width:120px;"/>
+                                                <button class="btn btn-success btn-sm"
+                                                        @onclick="() => AddSynonym(pair.Key)">Add
+                                                </button>
+                                            </div>
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Numeric Values -->
+                        <div class="accordion-item">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                                        data-bs-target="#collapseNumbers">
+                                    Numeric Options
+                                </button>
+                            </h2>
+                            <div id="collapseNumbers" class="accordion-collapse collapse">
+                                <div class="accordion-body d-flex flex-wrap gap-3">
+                                    <div class="form-group" style="flex:1; min-width:150px;">
+                                        <label>MaxDepth</label>
+                                        <input class="form-control form-control-sm" type="number" @bind="Config.MaxDepth"/>
+                                    </div>
+                                    <div class="form-group" style="flex:1; min-width:150px;">
+                                        <label>Timeout (sec)</label>
+                                        <input class="form-control form-control-sm" type="number" @bind="Config.Timeout"/>
+                                    </div>
+                                    <div class="form-group" style="flex:1; min-width:150px;">
+                                        <label>Request Delay (ms)</label>
+                                        <input class="form-control form-control-sm" type="number"
+                                               @bind="Config.RequestDelay"/>
+                                    </div>
+                                    <div class="form-group" style="flex:1; min-width:150px;">
+                                        <label>Discard Threshold</label>
+                                        <input class="form-control form-control-sm" type="number"
+                                               @bind="Config.DiscardThreshold"/>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- URLs -->
+                        <div class="accordion-item">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                                        data-bs-target="#collapseUrls">
+                                    URLs
+                                </button>
+                            </h2>
+                            <div id="collapseUrls" class="accordion-collapse collapse">
+                                <div class="accordion-body d-flex flex-wrap gap-3">
+                                    <div class="form-group" style="flex:1; min-width:200px;">
+                                        <label>API Base URL</label>
+                                        <input class="form-control form-control-sm" @bind="Config.ApiBaseUrl"/>
+                                    </div>
+                                    <div class="form-group" style="flex:1; min-width:200px;">
+                                        <label>Proxy URL</label>
+                                        <input class="form-control form-control-sm" @bind="Config.ProxyUrl"/>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div> <!-- end accordion -->
+                </div>
+
+                <!-- Footer -->
+                <div class="modal-footer">
+                    <InputFile OnChange="ImportConfigAsync" class="form-control w-auto me-auto" placeholder="Import config..."/>
+                    <button class="btn btn-primary" @onclick="SaveConfigAsync">Save</button>
+                    <button class="btn btn-secondary" @onclick="ExportConfigAsync">Export</button>
+                    <button class="btn btn-danger" @onclick="ResetConfigAsync">Reset Config</button>
+                </div>
+
+            </div>
+        </div>
+    </div>
+}
 
 @code {
+    private const string ConfigKey = "Swolesome_SearchConfig";
+    public SearchConfig Config { get; set; } = new SearchConfig();
     
+    private record ToastMessage(string Message, string Type);
+
+    private List<ToastMessage> Toasts = new();
+    
+    private bool showConfigModel = false;
+
+    private string _newSourceType = "";
+    private string _newInputType = "";
+    private string _newSynonym = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var stored = await JS.InvokeAsync<string>("searchConfigStorage.load", ConfigKey);
+        if (!string.IsNullOrWhiteSpace(stored))
+        {
+            try
+            {
+                Config = JsonSerializer.Deserialize<SearchConfig>(stored) ?? new SearchConfig();
+            }
+            catch
+            {
+                Config = new SearchConfig();
+            }
+        }
+    }
+    
+    private void ShowToast(string message, string type = "primary")
+    {
+        var toast = new ToastMessage(message, type);
+        Toasts.Add(toast);
+
+        // Auto-remove after 3 seconds
+        var _ = Task.Run(async () =>
+        {
+            await Task.Delay(3000);
+            await InvokeAsync(() => RemoveToast(toast));
+        });
+    }
+
+    private void RemoveToast(ToastMessage toast)
+    {
+        if (Toasts.Contains(toast))
+            Toasts.Remove(toast);
+        StateHasChanged();
+    }
+    
+    private void toggleConfigModel()
+    {
+        showConfigModel = !showConfigModel;
+        StateHasChanged();
+    }
+    
+    private async Task SaveConfigAsync()
+    {
+        var json = JsonSerializer.Serialize(Config, new JsonSerializerOptions { WriteIndented = true });
+        await JS.InvokeVoidAsync("searchConfigStorage.save", ConfigKey, json);
+        ConfigService.Config = Config;
+        showConfigModel = false;
+        
+        ShowToast("The configuration has been saved successfully!", "success");
+        
+        StateHasChanged();
+    }
+    
+    private async Task ResetConfigAsync()
+    {
+        ConfigService.Config = new SearchConfig();
+        Config = new SearchConfig();
+        
+        await SaveConfigAsync();
+    }
+    
+    private async Task ExportConfigAsync()
+    {
+        var json = JsonSerializer.Serialize(Config, new JsonSerializerOptions { WriteIndented = true });
+        var bytes = System.Text.Encoding.UTF8.GetBytes(json);
+        using var streamRef = new Microsoft.JSInterop.DotNetStreamReference(new MemoryStream(bytes));
+        await JS.InvokeVoidAsync("downloadFileFromStream", "search_config.json", streamRef);
+    }
+
+    private async Task ImportConfigAsync(InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+        var buffer = new byte[file.Size];
+        await file.OpenReadStream().ReadAsync(buffer);
+
+        var json = System.Text.Encoding.UTF8.GetString(buffer);
+        Config = JsonSerializer.Deserialize<SearchConfig>(json) ?? new SearchConfig();
+
+        await SaveConfigAsync();
+    }
+
+    private void UpdateList(List<string> list, string oldValue, string newValue)
+    {
+        if (string.IsNullOrWhiteSpace(newValue))
+            return;
+        
+        int idx = list.IndexOf(oldValue);
+        if (idx == -1)
+            return;
+
+        list[idx] = newValue;
+        
+        if (ReferenceEquals(list, Config.InputTypes) && oldValue != newValue)
+        {
+            if (Config.Synonyms.ContainsKey(oldValue))
+            {
+                var items = Config.Synonyms[oldValue];
+                Config.Synonyms.Remove(oldValue);
+                Config.Synonyms[newValue] = items;
+            }
+        }
+    }
+
+
+    private void RemoveItem(List<string> list, string item)
+    {
+        if (list.Contains(item))
+            list.Remove(item);
+        
+        if (ReferenceEquals(list, Config.InputTypes))
+        {
+            if (Config.Synonyms.ContainsKey(item))
+                Config.Synonyms.Remove(item);
+        }
+    }
+
+    private void AddSourceType()
+    {
+        if (!string.IsNullOrWhiteSpace(_newSourceType))
+        {
+            Config.SourceTypes.Add(_newSourceType);
+            _newSourceType = "";
+        }
+    }
+
+    private void AddInputType()
+    {
+        if (!string.IsNullOrWhiteSpace(_newInputType))
+        {
+            Config.InputTypes.Add(_newInputType);
+            
+            if (!Config.Synonyms.ContainsKey(_newInputType))
+            {
+                Config.Synonyms[_newInputType] = new List<string>();
+            }
+
+            _newInputType = "";
+        }
+    }
+
+    // synonyms
+    private void UpdateSynonym(string key, string oldValue, string? newValue)
+    {
+        if (newValue is null) return;
+        var list = Config.Synonyms[key];
+        var index = list.IndexOf(oldValue);
+        list[index] = newValue;
+    }
+
+    private void RemoveSynonym(string key, string value)
+    {
+        Config.Synonyms[key].Remove(value);
+    }
+
+    private void AddSynonym(string key)
+    {
+        if (!string.IsNullOrWhiteSpace(_newSynonym))
+        {
+            Config.Synonyms[key].Add(_newSynonym);
+            _newSynonym = "";
+        }
+    }
+
 }

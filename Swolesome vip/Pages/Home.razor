@@ -6,7 +6,9 @@
 @using System.Text.Json
 @using Swolesome_vip.Models;
 @using CsvHelper;
+@using Swolesome_vip.Services
 @using Swolesome_vip.Utils
+@inject SearchConfigService ConfigService
 @inject IJSRuntime JS
 
 <section class="bg-white rounded shadow p-4 mb-4">
@@ -61,6 +63,24 @@
 
 @code {
     [Parameter] public List<SearchResult> Results { get; set; } = new List<SearchResult>();
+    
+    private const string ConfigKey = "Swolesome_SearchConfig";
+    
+    protected override async Task OnInitializedAsync()
+    {
+        var stored = await JS.InvokeAsync<string>("searchConfigStorage.load", ConfigKey);
+        if (!string.IsNullOrWhiteSpace(stored))
+        {
+            try
+            {
+                ConfigService.Config = JsonSerializer.Deserialize<SearchConfig>(stored) ?? new SearchConfig();
+            }
+            catch
+            {
+                ConfigService.Config = new SearchConfig();
+            }
+        }
+    }
 
     private void HandleSearchCompleted(List<SearchResult> ctx)
     {
