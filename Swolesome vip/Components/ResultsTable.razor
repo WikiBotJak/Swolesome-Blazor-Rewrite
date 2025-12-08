@@ -14,12 +14,19 @@
             @{
                 bool firstRow = true;
                 var properties = item.Data;
+                
+                int shownCount = 0;
+                int maxCount = ConfigService.Config.DiscardThreshold;
             }
             @foreach (var kvp in properties)
             {
+                if (shownCount > maxCount)
+                    break;
+                
                 var isTopRow = firstRow;
                 bool showRow = isTopRow || item.IsExpanded;
                 if (!showRow) continue;
+                shownCount++;
 
                 <tr class="@GetRowClass(isTopRow)">
                     <td class="py-2 px-3 fw-semibold" style="width: 25%;">

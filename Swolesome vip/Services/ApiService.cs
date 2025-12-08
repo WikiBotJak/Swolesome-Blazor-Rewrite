@@ -8,10 +8,12 @@ namespace Swolesome_vip.Services;
 public class ApiService
 {
     private readonly HttpClient _httpClient;
+    private readonly SearchConfigService _configService;
     
-    public ApiService(HttpClient httpClient)
+    public ApiService(HttpClient httpClient, SearchConfigService configService)
     {
         _httpClient = httpClient;
+        _configService = configService;
     }
     
     public async Task<JsonDocument> SendRequestAsync(
@@ -20,6 +22,12 @@ public class ApiService
         bool wildcard = false,
         bool caseSensitive = false)
     {
+        int timeout = _configService.Config.Timeout;
+        CancellationTokenSource? cts = null;
+
+        if (timeout > 0)
+            cts = new CancellationTokenSource(TimeSpan.FromSeconds(timeout));
+
         var targetUrl = "http://localhost:8001/";
         var body = new Dictionary<string, object?>
         {
@@ -29,12 +37,17 @@ public class ApiService
             ["case_sensitive"] = caseSensitive,
             ["_target_url"] = "https://breach.vip/api/search"
         };
-        
+
         var jsonBody = JsonSerializer.Serialize(body);
         using var content = new StringContent(jsonBody, Encoding.UTF8, "application/json");
-        using var response = await _httpClient.PostAsync(targetUrl, content);
+        
+        using var response = await _httpClient.PostAsync(
+            targetUrl,
+            content,
+            cts?.Token ?? CancellationToken.None
+        );
 
-        await using var responseStream = await response.Content.ReadAsStreamAsync();
-        return await JsonDocument.ParseAsync(responseStream);
+        await using var responseStream = await response.Content.ReadAsStreamAsync(cts?.Token ?? CancellationToken.None);
+        return await JsonDocument.ParseAsync(responseStream, cancellationToken: cts?.Token ?? CancellationToken.None);
     }
 }
